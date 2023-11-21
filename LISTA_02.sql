@@ -1,0 +1,65 @@
+USE AB_TREINAMENTO_CAROLINE
+GO
+
+/*
+Crie uma stored procedure que receba por parâmetro os dados da tabela MOVIMENTOS, exceto o número e a data de movimento, e inclua o registro desde que:
+Exista a conta passada por parâmetro na tabela CONTAS (ver pela chave primária inteira e não apenas pelo número da conta)
+Ao incluir, para a data do movimento, passar a data corrente.
+Execute a procedure de forma que insira o registro.
+Realize uma consulta que retorne apenas o registro inserido pela procedure.
+*/
+
+CREATE PROCEDURE P_MOVIMENTOS (@CODCOLIGADA VARCHAR(3), @CODAGENCIA VARCHAR(5), 
+@NROCONTA VARCHAR(7), @VALOR DECIMAL(17,2), @MORA DECIMAL (17,2), @MULTA DECIMAL (17,2), @DESCONTO DECIMAL (17,2), @DESCRICAO DECIMAL (17,2))
+
+AS BEGIN
+
+	IF EXISTS (SELECT 1 FROM CONTAS WHERE CODAGENCIA = @CODAGENCIA AND CODCOLIGADA = @CODCOLIGADA AND NROCONTA = @NROCONTA)
+	BEGIN
+		INSERT INTO MOVIMENTOS(CODCOLIGADA,CODAGENCIA,NROCONTA,VALOR,MORA,MULTA,DESCONTO,DESCRICAO, DATAMOVIMENTO)
+		VALUES (@CODCOLIGADA, @CODAGENCIA, @NROCONTA, @VALOR, @MORA, @MULTA, @DESCONTO, @DESCRICAO, GETDATE())
+	END
+END
+GO
+
+EXEC P_MOVIMENTOS @CODCOLIGADA = '100', @CODAGENCIA = '10016', @NROCONTA = '1234567', @VALOR = 500, @MORA = 10, @MULTA = 0, @DESCONTO = 0, @DESCRICAO = 0
+
+SELECT * FROM MOVIMENTOS  
+
+SELECT * 
+FROM MOVIMENTOS
+WHERE CODCOLIGADA = 100 AND
+             CODAGENCIA = 10016   AND
+             NROCONTA = 1234567   AND
+             NROMOVIMENTO = 1
+
+/*
+	Realize uma nova inserção utilizando a stored procedure criada no exercício 14, porém, para outra conta.
+*/
+
+EXEC P_MOVIMENTOS @CODCOLIGADA = '101', @CODAGENCIA = '10016', @NROCONTA = '1234578', @VALOR = 490, @MORA = 9, @MULTA = 0, @DESCONTO = 0, @DESCRICAO = 0
+
+/*
+	Insira uma check nos campos VALOR, MORA, MULTA e DESCONTO da tabela MOVIMENTOS para não permitir valores negativos
+*/
+
+ALTER TABLE MOVIMENTOS ADD 
+	CONSTRAINT VALIDA_VALORNEGATIVO CHECK (VALOR >= 0),
+    CONSTRAINT VALIDA_MORANEGATIVO CHECK (MORA >= 0),
+    CONSTRAINT VALIDA_MULTANEGATIVO CHECK (MULTA >= 0),
+    CONSTRAINT VALIDA_DESCONTONEGATIVE CHECK (DESCONTO >= 0)
+
+/*
+	Realize um consulta que retorne o menor, o maior e a média do campo VALOR da tabela MOVIMENTOS
+*/
+
+SELECT MIN(VALOR) AS MENORVALOR, MAX(VALOR) AS MAIORVALOR, AVG(VALOR) AS MEDIA FROM MOVIMENTOS
+
+/*
+	Realize uma consulta que retorne os campos CPFCNPJ, NOME da tabela PESSOA, e o campo DATAMOVIMENTO da tabela MOVIMENTOS, desde que seja o maior valor, que a conta seja do tipo
+	poupança (INDPOUPANCA = S) e que a pessoa seja cliente (INDCLIENTEBANCO = 'S')
+*/
+
+SELECT PESSOAS.CPFCNPJ, PESSOAS.NOME, MOVIMENTOS.DATAMOVIMENTO 
+FROM PESSOAS JOIN CONTAS ON CONTAS.CODPESSOA = PESSOAS.CODPESSOA JOIN MOVIMENTOS ON MOVIMENTOS.NROCONTA = CONTAS.NROCONTA
+WHERE MOVIMENTOS.VALOR = (SELECT MAX(VALOR) FROM MOVIMENTOS WHERE INDPOUPANCA = 'S') AND CONTAS.INDPOUPANCA = 'S' AND PESSOAS.INDCLIENTEBANCO = 'S'
